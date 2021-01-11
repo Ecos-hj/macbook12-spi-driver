@@ -49,6 +49,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 
 #include "apple-ibridge.h"
 
@@ -463,6 +464,12 @@ static void appleals_config_sensor(struct appleals_device *als_dev,
 		hid_hw_power(als_dev->hid_dev, PM_HINT_NORMAL);
 }
 
+static inline struct iio_dev *iio_priv_to_dev(void *priv)
+{
+	return (struct iio_dev *)((char *)priv -
+				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
+}
+
 static int appleals_config_iio(struct appleals_device *als_dev)
 {
 	struct iio_dev *iio_dev = iio_priv_to_dev(als_dev);
@@ -541,7 +548,12 @@ static int appleals_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "Found ambient light sensor\n");
 
 	/* initialize device */
-	iio_dev = devm_iio_device_alloc(&hdev->dev, sizeof(*als_dev));
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+        iio_dev = iio_device_alloc(sizeof(als_dev));
+#else
+        iio_dev = iio_device_alloc(&als_dev->hid_dev->dev, sizeof(als_dev));
+#endif
+
 	if (!iio_dev)
 		return -ENOMEM;
 
